@@ -6,6 +6,7 @@ import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import time
+from pathlib import Path
 from typing import Any
 from itertools import batched
 
@@ -53,7 +54,10 @@ RERANKER_BASE_URL = "https://foundation-models.api.cloud.ru"
 RERANKER_MODEL = "Qwen/Qwen3-Reranker-0.6B"
 RERABKER_CONTEXT_LENGTH = 80000 # 2 char per tokern for 40k token limit
 
-VECTOR_DATABASE_ADRESS = "./sqlite_museum_db/vector_base"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DATA_DIR = PROJECT_ROOT / "data"
+
+VECTOR_DATABASE_ADRESS = str(DATA_DIR / "qdrant")
 VECOTOR_DATABASE_COLLECTION = "museum_collection"
 
 llm = ChatOpenAI(

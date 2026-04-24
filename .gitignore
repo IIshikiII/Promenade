@@ -30,6 +30,8 @@ ENV/
 *-checkpoint.ipynb
 
 # --- Databases / generated data ---
+data/*
+!data/.gitkeep
 sqlite_museum_db/
 *.db
 *.sqlite
