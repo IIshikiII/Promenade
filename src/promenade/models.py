@@ -17,8 +17,9 @@ import re
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from pydantic import BaseModel, HttpUrl, ValidationError
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
+from sqlalchemy import create_engine, ForeignKey, UniqueConstraint
+from sqlalchemy import Integer, String, Boolean, text
+from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, Session
 from tqdm import tqdm
 import asyncio
 import aiohttp
@@ -34,9 +35,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Payload
 from qdrant_client.models import Distance, PointStruct, VectorParams
-
-# --- Local ---
-from ipynb.fs.full.configure_db import Museum, Schedule
 
 load_dotenv()
 
@@ -319,7 +317,7 @@ class WebTools:
     async def _fetch_with_semaphore(self, session, semaphore, url):
         async with semaphore:
             await asyncio.sleep(0.5)
-            return await WEB_TOOLS.parse_page_reader(session, url)
+            return await self.parse_page_reader(session, url)
     
     async def fetch_all_museum_data(self, url: HttpUrl, depth: int = 1, filter_languages: bool = True) -> list[dict]:
         expression = URL_PATTERN
@@ -329,7 +327,7 @@ class WebTools:
         pages_dict = dict()
         async with aiohttp.ClientSession() as session:
             async with semaphore:
-                result = await WEB_TOOLS.parse_page_reader(session, url)
+                result = await self.parse_page_reader(session, url)
                 pages_dict.update([result])
 
         pages = self.extract_and_validate_urls([pages_dict[f"{url}"]], expression, domain)
@@ -361,5 +359,43 @@ class WebTools:
             
         return [doc['text'] for doc in documetns_copy if doc['score'] >= threshold]
     
+    def mask_binary_urls(self, text: str) -> str:
+        def replace_if_binary(match: re.Match) -> str:
+            url = match.group(0)
+            path = match.group(3).split('?')[0]
+            if any(path.lower().endswith(ext) for ext in BINARY_FILES):
+                return '[BIN URL]'
+            return url
+
+        return re.sub(URL_PATTERN, replace_if_binary, text)
+    
+    def mask_base_url(self, text: str, base_url: HttpUrl) -> str:
+        return text.replace(str(base_url), "[BASE URL]")
+    
+# --- Database models ---
+
+class Base(DeclarativeBase):
+    pass
 
 
+class Museum(Base):
+    __tablename__ = "museum"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    museum_name: Mapped[str]
+    url: Mapped[str]
+    visited: Mapped[bool] = mapped_column(default=False)
+
+
+class Schedule(Base):
+    __tablename__ = "schedule"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    museum_id: Mapped[int] = mapped_column(ForeignKey("museum.id"))
+    day_of_week: Mapped[int]
+    open_time: Mapped[time]
+    close_time: Mapped[time]
+    last_entry_time: Mapped[time | None]
+    is_closed: Mapped[bool] = mapped_column(default=False)
+
+    __table_args__ = (UniqueConstraint("museum_id", "day_of_week"),)
