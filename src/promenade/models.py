@@ -8,7 +8,9 @@ from dataclasses import dataclass, field
 from datetime import time
 from pathlib import Path
 from typing import Any
+from typing import TypedDict, Annotated, Literal
 from itertools import batched
+import operator
 
 # --- Third-party ---
 import httpx
@@ -26,10 +28,14 @@ import aiohttp
 from tqdm.asyncio import tqdm as atqdm
 
 # --- LangChain ---
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage, AnyMessage
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter 
+
+# ---Langgraph
+from langgraph.graph import StateGraph, START, END
+from langgraph.types import Send
 
 # --- Qdrant ---
 from qdrant_client import QdrantClient
@@ -57,6 +63,7 @@ DATA_DIR = PROJECT_ROOT / "data"
 
 VECTOR_DATABASE_ADRESS = str(DATA_DIR / "qdrant")
 VECOTOR_DATABASE_COLLECTION = "museum_collection"
+DATABASE_ADRESS = f"sqlite:///{DATA_DIR / 'museum.db'}"
 
 llm = ChatOpenAI(
     model=MODEL_NAME,
@@ -282,7 +289,7 @@ class WebTools:
     ) -> tuple[bool, str | None]:
         try:
             text_to_embed = f"{place_name}. {place_info}"
-            print(text_to_embed)
+            # print(text_to_embed)
             embeddings = embeddings_model.embed_query(text_to_embed)
             client = QdrantClient(path=VECTOR_DATABASE_ADRESS)
             client.upsert(
