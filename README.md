@@ -1,54 +1,57 @@
 # Promenade
 
-AI-агент для поиска культурного досуга — музеи, выставки, концерты, фестивали и другие мероприятия отдыха. Парсит страницы заведений, складывает в SQLite и векторную базу Qdrant, отвечает на запросы через LLM-пайплайн с retrieval и reranking.
+An AI agent for discovering cultural leisure — museums, exhibitions, concerts, festivals and other events. Promenade crawls venue pages, persists structured data into SQLite and a Qdrant vector store, and answers natural-language queries through an LLM pipeline with retrieval and reranking.
 
-## Структура
+## Repository layout
 
 ```
 .
-├── pyproject.toml              # метаданные пакета promenade
+├── pyproject.toml                  # promenade package metadata
 ├── README.md
-├── .env.example                # шаблон переменных окружения
+├── .env.example                    # environment variable template
 ├── .gitignore
 │
 ├── src/
-│   └── promenade/
-│       ├── __init__.py
-│       ├── models.py           # ядро: LLM-клиенты, embeddings, reranker, retrieval, агент
-│       └── configure_db.ipynb  # SQLAlchemy-схема (Museum, Schedule) — импортируется в models.py
+│   ├── promenade/                  # installable library
+│   │   ├── __init__.py
+│   │   └── models.py               # LLM / embeddings / reranker clients,
+│   │                               # retrieval, web tools, ORM schema
+│   │
+│   └── init_dev_state/             # one-shot dev bootstrap scripts (not a package)
+│       ├── init_sqlite_db.py       # creates data/museum.db and the schema
+│       └── init_qdrant_db.py       # creates data/qdrant/ and the collection
 │
-├── notebooks/                  # прикладные и демо-ноутбуки
-│   ├── configure_vec_db.ipynb  # инициализация Qdrant-коллекции
+├── notebooks/                      # demo and exploratory notebooks
 │   ├── reader_page_parser.ipynb
 │   ├── reader_tool.ipynb
-│   ├── retriever.ipynb
+│   ├── graph_agent.ipynb
 │   └── example.ipynb
 │
-├── data/                       # локальное состояние (gitignored): SQLite, Qdrant, дампы
+├── data/                           # local state (gitignored): SQLite, Qdrant
 │   └── .gitkeep
 │
 ├── docs/
-│   └── samples/                # примеры распарсенных страниц
-│       ├── example_page.md
-│       └── example_page_2.md
+│   └── samples/                    # examples of parsed pages
+│       ├── cosmo_page.md
+│       └── tretyakovka_page.md
 │
-└── tests/                      # задел под тесты
+└── tests/
     └── .gitkeep
 ```
 
-### Чем занято `data/`
+### What lives in `data/`
 
-Папка в репозиторий не коммитится (кроме `.gitkeep`). После прогона ноутбуков там появится:
+The `data/` directory is gitignored (apart from `.gitkeep`). After running the bootstrap scripts it will contain:
 
-- `data/museum.db` — SQLite с таблицами `museum` и `schedule`.
-- `data/qdrant/` — векторная база Qdrant с коллекцией `museum_collection`.
+- `data/museum.db` — SQLite database with the `museum` and `schedule` tables.
+- `data/qdrant/` — local Qdrant vector store with the `museum_collection` collection.
 
-## Требования
+## Requirements
 
 - Python 3.13+
-- Доступ к API: OpenAI-совместимый endpoint (cloud.ru foundation models), Telegram bot token.
+- API access: an OpenAI-compatible endpoint (cloud.ru foundation models) and a Telegram bot token.
 
-## Установка
+## Installation
 
 ```bash
 python -m venv env
@@ -60,11 +63,11 @@ source env/bin/activate
 pip install -e .
 ```
 
-`pip install -e .` ставит пакет `promenade` в editable-режиме — ноутбуки и скрипты смогут импортировать его как `from promenade.models import *` независимо от CWD.
+`pip install -e .` installs the `promenade` package in editable mode, so notebooks and scripts can import it as `from promenade.models import ...` regardless of the current working directory. The `src/init_dev_state/` directory is intentionally excluded from the install — it contains development scripts, not library code.
 
-## Конфигурация
+## Configuration
 
-Скопируй `.env.example` в `.env` и заполни ключи:
+Copy `.env.example` to `.env` and fill in the keys:
 
 ```
 OPENAI_API_KEY=...
@@ -72,11 +75,22 @@ TELEGRAM_TOKEN=...
 QWEN_API_KEY=...
 ```
 
-## Инициализация баз данных
+## Bootstrapping the databases
 
-Все команды и ноутбуки запускать **из корня репозитория** (а не из `notebooks/` или `src/promenade/`) — пути к `data/` резолвятся относительно CWD.
+Run all commands and notebooks **from the repository root** (not from `notebooks/` or `src/`) — `init_sqlite_db.py` resolves `data/` relative to the current working directory.
 
-1. Запустить `src/promenade/configure_db.ipynb` — создаст `data/museum.db` и схему.
-2. Запустить `notebooks/configure_vec_db.ipynb` — создаст `data/qdrant/` и коллекцию.
+```bash
+python src/init_dev_state/init_sqlite_db.py     # creates data/museum.db
+python src/init_dev_state/init_qdrant_db.py     # creates data/qdrant/
+```
 
-После этого можно пользоваться `notebooks/reader_page_parser.ipynb`, `reader_tool.ipynb`, `retriever.ipynb` и `example.ipynb`.
+Both scripts are idempotent: running them again wipes existing state and recreates an empty database.
+
+## Usage
+
+Once the databases are initialized, the demo notebooks can be opened in any order:
+
+- `notebooks/reader_page_parser.ipynb` — fetches and parses venue pages.
+- `notebooks/reader_tool.ipynb` — agent-facing reader tool wrapping the parser.
+- `notebooks/graph_agent.ipynb` — LangGraph agent that orchestrates retrieval, reading and answering.
+- `notebooks/example.ipynb` — end-to-end usage example.
