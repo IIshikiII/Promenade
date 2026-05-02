@@ -5,7 +5,7 @@
 
 ## Backlog
 - [ ] Check if recordl in db already
-- [ ] Check extractor agent on invalid urls
+- [ ] Update url validator for 404 errors pasring without llm
 - [ ] Create subgraph extracting infromation from databases
 - [ ] add guardrails
 
