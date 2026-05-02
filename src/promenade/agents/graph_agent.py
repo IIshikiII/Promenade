@@ -20,9 +20,13 @@ class PlaceSchedule(BaseModel):
     saturday: DaySchedule 
     sunday: DaySchedule
 
+class LlmValidate(BaseModel):
+    correct: bool
+    desciption: str
 
 class MainState(TypedDict):
     url: str
+    parsed: tuple[bool, str] | tuple[None, None]
     subdocs: list[str]
     results: Annotated[list[dict], operator.add]
 
@@ -109,6 +113,52 @@ Follow these rules strictly:
 8. **If the input is very short or contains only “У вас отключен JavaScript”** – still extract any hours, addresses, or links that are visible. Do not say “no information” if something is present.
 
 Now produce the report based on the user’s input.
+"""
+    PAGE_VALIDATOR_SYSTEM = """
+You are a leisure and entertainment venue validator.
+
+Your task: determine whether the given webpage contains substantive information about a leisure, entertainment, or cultural venue where people visit for recreation.
+
+## Valid venue types (return correct=true):
+- **Museums**: Art, history, science, specialized museums, house-museums
+- **Exhibition spaces**: Galleries, pavilions, exposition centers with visitor info
+- **Entertainment venues**: Cinemas, theaters, circuses, concert halls
+- **Active leisure**: Scalable climbing walls (скалодромы), aerotubes (аэротрубы), trampoline parks, escape rooms, amusement centers
+- **Educational attractions**: Planetariums, observatories, interactive science centers
+- **Recreational facilities**: Zoos, aquariums, botanical gardens, parks with paid attractions
+- **Historical sites**: Forts, landmarks, open-air museums, memorial complexes
+
+## Content requirements:
+The page must provide some visitor-relevant information such as:
+- Operating hours/schedule
+- Ticket prices or admission info
+- Location/address
+- Services/services offered
+- Event calendar or activity descriptions
+
+## Invalid content (return correct=false):
+- Corporate websites (business-to-business, no public visits)
+- News/media portals (news articles, blogs, social media)
+- E-commerce sites (online stores, product catalogs)
+- Error pages (404, 500, server errors)
+- Placeholder pages ("Under construction", "Coming soon")
+- Completely blank pages or pages with only JS-disabled messages and no fallback content
+
+## Rules:
+1. **Focus on visitor experience**: If the page serves visitors who come in person, it's valid
+2. **Accept partial information**: Even minimal visitor info (hours + address) makes it valid
+3. **Language doesn't matter**: Validate content regardless of language
+4. **Output JSON only**: {"correct": true|false, "description": "brief explanation that url or page is incorrect"}
+5. 
+
+## Examples:
+- Museum homepage with tickets → correct=true
+- Scalable climbing wall schedule (скалодром) → correct=true
+- Aerotube booking page (аэротруба) → correct=true
+- Cinema showtimes page → correct=true
+- Zoo opening hours → correct=true
+- Corporate "About us" page (no public visits) → correct=false
+- 404 error page → correct=false
 """
 
     def dev_parse_page_info(page_url: str) -> list[str]:
@@ -204,11 +254,13 @@ is_closed:
         return {"saved_vector": ok}
 
     def doc_result(state: DocState) -> dict:
-        return {"results": [{
+        return {
+            "results": [{
             "ok": state["saved_schedule"] and state["saved_vector"],
             "doc_preview": state["doc"][:50],
             "place_name": state["schedule"].place_name
-        }]}
+        }]
+        }
     
     doc_builder = StateGraph(DocState, output_schema=MainState)
     doc_builder.add_node("llm_extract", llm_extract)
@@ -225,6 +277,30 @@ is_closed:
     doc_graph = doc_builder.compile()
     
     # === Main graph ===
+    bool_llm = llm.with_structured_output(LlmValidate)
+    async def check_page(state: MainState) -> str:
+        "Check if user input contains a valid museum or exhibition url"
+        async with aiohttp.ClientSession() as session:
+            _, page_content = await WEB_TOOLS.parse_page_reader(session, state["url"])
+        if page_content == 'Internal server error':
+            page_content = "This page does not exist."
+        result = bool_llm.invoke(
+            [
+                SystemMessage(PAGE_VALIDATOR_SYSTEM),
+                HumanMessage(page_content)
+            ]
+        )
+        if result.correct:
+            return {
+                "parsed": (True, result.desciption or "Valid leisure venue page"),
+                "next": "parse_node"
+            }
+        else:
+            return {
+                "parsed": (False, result.desciption or "Invalid webpage"),
+                "next": "aggregate_node"
+            }
+
     async def parse_node(state: MainState) -> dict:
         """Parse page and extract sub-documents."""
         subdocs = await parse_page_info(page_url = state["url"])
@@ -245,16 +321,29 @@ is_closed:
 
     def aggregate_node(state: MainState) -> dict:
         """Aggregate results and print summary."""
-        success = sum(1 for r in state["results"] if r["ok"])
-        print(f"Processed: {success}/{len(state['results'])}")
-        return {}
+        is_valid, msg = state["parsed"]
+        if is_valid:
+            success = sum(1 for r in state["results"] if r["ok"])
+            report = f"Processed: {success}/{len(state['results'])}"
+            state["parsed"] = (True, report)
+            print(report)
+            return {}
+        else:
+            print(msg)
+            return {}
 
     main_builder = StateGraph(MainState)
     main_builder.add_node("parse_node", parse_node)
     main_builder.add_node("process_doc", doc_graph)       # подграф как нода
     main_builder.add_node("aggregate_node", aggregate_node)
+    main_builder.add_node("check_page", check_page)
 
-    main_builder.add_edge(START, "parse_node")
+    main_builder.add_edge(START, "check_page")
+    main_builder.add_conditional_edges(
+        "check_page",
+        lambda x: x["next"],
+        ["parse_node", "aggregate_node"]
+    )
     main_builder.add_conditional_edges("parse_node", dispatch, ["process_doc"])
     main_builder.add_edge("process_doc", "aggregate_node")
     main_builder.add_edge("aggregate_node", END)
