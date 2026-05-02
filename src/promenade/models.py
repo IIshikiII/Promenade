@@ -96,6 +96,12 @@ class ToolCallRecord:
     result: Any = None
 
 
+class ToolResult(TypedDict):
+    status: Literal["success", "error"]
+    message: str
+    details: dict[str, Any]
+
+
 class ToolTracer:
     """Collects all tool calls."""
     def __init__(self):

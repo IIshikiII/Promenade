@@ -206,7 +206,8 @@ is_closed:
     def doc_result(state: DocState) -> dict:
         return {"results": [{
             "ok": state["saved_schedule"] and state["saved_vector"],
-            "doc_preview": state["doc"][:50]
+            "doc_preview": state["doc"][:50],
+            "place_name": state["schedule"].place_name
         }]}
     
     doc_builder = StateGraph(DocState, output_schema=MainState)
