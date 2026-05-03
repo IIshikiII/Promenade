@@ -198,6 +198,13 @@ The page must provide some visitor-relevant information such as:
 
             response = llm_chat(messages=messages).content
 
+            # Save response to dev_docs folder
+            os.makedirs(DATA_DIR / "dev_docs", exist_ok=True)
+            safe_url_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', base_url).strip('_')
+            doc_filename = f"{safe_url_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+            with open(DATA_DIR / "dev_docs" / doc_filename, "w", encoding="utf-8") as f:
+                f.write(response)
+
             docs = [base_url_str + doc.strip() for doc in response.split("====")]
             return docs
     
