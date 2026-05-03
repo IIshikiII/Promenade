@@ -1,7 +1,7 @@
-from promenade.models import create_engine, Base, text, os
+from promenade.models import create_engine, Base, text, os, DATA_DIR, DATABASE_ADRESS
 
-os.makedirs("data", exist_ok=True)
-engine = create_engine("sqlite:///data/museum.db")
+os.makedirs(DATA_DIR, exist_ok=True)
+engine = create_engine(DATABASE_ADRESS)
 
 Base.metadata.create_all(engine)
 
