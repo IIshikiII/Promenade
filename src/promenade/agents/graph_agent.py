@@ -355,6 +355,5 @@ is_closed:
     main_builder.add_edge("process_doc", "aggregate_node")
     main_builder.add_edge("aggregate_node", END)
 
-    agent = main_builder.compile()
 
     return main_builder.compile()

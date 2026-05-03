@@ -197,7 +197,7 @@ class RetreiveReranker:
             for item in data:
                 item["index"] += i * batch_size
             return data
-        
+
         results = await atqdm.gather(
             *[_rerank_batch(i, batch) for i, batch in enumerate(batches)]
         )
@@ -210,10 +210,10 @@ class RetreiveReranker:
 
 
 
-    def retrieve_and_rerank(self, query: str):
+    async def retrieve_and_rerank(self, query: str):
         retrieved_docs = self.retrieve(query)
         documents = [h["text"] for h in retrieved_docs]
-        reranked_points = self.rerank(documents, query)
+        reranked_points = await self.rerank(documents, query)
         for r in reranked_points:
             retrieved_docs[r["index"]]["score"] = r["score"]
 
