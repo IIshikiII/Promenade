@@ -8,6 +8,7 @@ retrieve_reranker = RetreiveReranker(retrieve_n=15, rerank_n=15, rerank_model=RE
 
 class RetrieveState(TypedDict):
     input_query: str
+    retrieved_count: int | None
     reranked_documents: list[dict] | None
     result: str | None
     
@@ -33,6 +34,7 @@ def build_reranker_graph(
         else:
             return   {
                 "next": END,
+                "retrieved_count": 0,
                 "result": "There is no relevant places"
             }
         
@@ -41,6 +43,7 @@ def build_reranker_graph(
         #     print(doc)
         docs = [doc["text"] for doc in state["reranked_documents"] if doc["score"] >= rerank_threshold]
         return{
+            "retrieved_count": len(docs),
             "result": "\n\n====\n".join(docs)
         }
     
