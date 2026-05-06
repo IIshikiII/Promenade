@@ -246,7 +246,7 @@ is_closed:
         return {"schedule": schedule}
 
     def save_schedule(state: DocState):
-        ok, museum_id, err = WEB_TOOLS.insert_schedule_into_db(**state["schedule"].model_dump())
+        ok, museum_id, _ = WEB_TOOLS.insert_schedule_into_db(**state["schedule"].model_dump())
         return {
             "saved_schedule": ok,
             "museum_id": museum_id
