@@ -18,7 +18,7 @@ import requests
 import re
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
-from pydantic import BaseModel, HttpUrl, ValidationError
+from pydantic import BaseModel, HttpUrl, ValidationError, field_validator
 from sqlalchemy import create_engine, ForeignKey, UniqueConstraint
 from sqlalchemy import Integer, String, Boolean, text
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, Session

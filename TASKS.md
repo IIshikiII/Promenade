@@ -11,3 +11,4 @@
 - [ ] Add processing of not exising second level webpages of museum (http://redpoint.msk.ru/)
 - [ ] Add logging
 - [ ] Strengthen parsing agent
+- [ ] process museums without schedule

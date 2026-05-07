@@ -211,7 +211,7 @@ The page must provide some visitor-relevant information such as:
     # === Subgraph for processing a single document ===
     structured_llm = llm.with_structured_output(PlaceSchedule)
 
-    SHCEDULE_EXTRACTOR_SYSTEM = """You are a structured data extractor. Your only job is to fill the PlaceSchedule schema from a single location section.
+    SHCEDULE_EXTRACTOR_SYSTEM = """You are a structured data extractor. Your only job is to fill the PlaceSchedule schema.
 
 ## Input format
 - The very first line starts with "Base url:" — that is the value for place_url.
