@@ -40,7 +40,7 @@ from langgraph.types import Send
 # --- Qdrant ---
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Payload
-from qdrant_client.models import Distance, PointStruct, VectorParams
+from qdrant_client.models import Distance, PointStruct, VectorParams,  Filter, FieldCondition, MatchValue
 
 load_dotenv()
 
@@ -219,6 +219,27 @@ class RetreiveReranker:
 
         sorted_and_reranked = sorted(retrieved_docs, key=lambda x: x.get("score", 0), reverse=True)
         return sorted_and_reranked[: self.rerank_n]
+    
+    def search_by_id(self, id: int) -> dict:
+        client = QdrantClient(path=VECTOR_DATABASE_ADRESS)
+        try:
+            query_filter=Filter(
+                must=[
+                        FieldCondition(
+                        key='id',
+                        match=MatchValue(value=id)
+                        )
+                ]
+            )
+            res = client.scroll(
+                collection_name="museum_collection",
+                scroll_filter=query_filter,
+                limit=1,               
+                with_vectors=False
+            )
+            return res[0][0].payload
+        finally:
+            client.close()
 
 
 # --- Reader models ---
