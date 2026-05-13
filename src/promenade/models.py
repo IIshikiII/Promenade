@@ -47,7 +47,7 @@ load_dotenv()
 
 QWEN_API_KEY = os.getenv("QWEN_API_KEY")
 
-MODEL_NAME = "Qwen/Qwen3-235B-A22B-Instruct-2507"
+MODEL_NAME = "openai/gpt-oss-120b"
 LLM_BASE_URL = "https://foundation-models.api.cloud.ru/v1"
 
 EMBEDDINGS_MODEL_NAME = "BAAI/bge-m3"
